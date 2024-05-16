@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkedLd</title>
+
+    <!-- CSS Link  -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="shortcut icon" href="home-images/favicon.png" />
+    <!-- Font Awesome CDN  -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css    "
+    />
+    <style>
+      /* Add your custom styles here if needed */
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <input type="checkbox" id="check" />
+        <label for="check" id="check-btn">
+          <i class="fas fa-bars"></i>
+        </label>
+        <img src="home-images/Interior-logo.png" alt="logo" />
+        <ul>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </nav>
+      <div class="head">
+        <h1>
+          Welcome to our website!<br />
+          Find your like-minded people
+        </h1>
+        <p>Our website stores thousands of profiles of real professionals in their field.</p>
+        <button onclick="signMessage()">Login</button>
+        <p id="p1"></p>
+      </div>
+    </header>
+     
+    <!-- JavaScript Code -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.10.5/dist/web3.min.js"></script>
+    <script>
+      // Check if a Solana wallet extension is installed and connect to it
+      async function connectToWallet() {
+        if ("solana" in window) {
+          await window.solana.connect(); // opens wallet to connect to
+
+          const provider = window.solana;
+          if (provider.isPhantom) {
+            console.log("Is Phantom installed?  ", provider.isPhantom);
+            return provider;
+          }
+        } else {
+          document.write('Install https://www.phantom.app/');
+        }
+      }
+
+      // Get the nonce value from the backend server
+      async function getNonce() {
+        const response = await fetch('/api/nonce');
+        const data = await response.json();
+        return data.nonce;
+      }
+
+      // Sign the message with the nonce and send it to the backend server for verification
+      async function signMessage() {
+        try {
+          // Connect to the Solana wallet
+          const provider = await connectToWallet();
+          console.log(provider);
+
+          // Check if a Solana wallet extension is installed and connected
+          if (!provider || !provider.isPhantom) {
+            return; // Exit if Phantom is not installed or not connected
+          }
+
+          // Get the nonce value from the backend server
+          const nonce = await getNonce();
+          console.log(nonce);
+
+          // Get the public key of the connected wallet
+          const publicKey = provider.publicKey.toBase58();
+          // console.log("publickey: " + publicKey)
+
+          // Construct the message to be signed
+          const message = `Signing this message to confirm my identity. Nonce: ${nonce}`;
+
+          // Convert the message to Uint8Array
+          const encoder = new TextEncoder('utf-8');
+          const messageArray = encoder.encode(message);
+
+          // Sign the message
+          const signedMessage = await provider.signMessage(messageArray);
+
+          // Assuming that signedMessage is a Uint8Array or any array of bytes
+          let signedMessageBase64 = btoa(String.fromCharCode(...new Uint8Array(signedMessage)));
+
+          // Prepare the data to be sent to the backend server
+          const data = { signedMeassage: signedMessageBase64, message, publicKey };
+          console.log(data);
+
+          // Send the signed message to the backend server for verification
+          const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+          });
+
+          // Extract the token from the response
+          const token = await response.json();
+
+          // Store the token in local storage
+          window.localStorage.setItem("token", token);
+
+          // Verify the token with the backend server
+          const verifyResponse = await fetch('/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          // Check the verification result
+          const verificationResult = await verifyResponse.json();
+          if (verificationResult === "ok") {
+            // Redirect to the success page if verification is successful
+            window.location.href = '/success';
+          } else {
+            // Display an error message if verification fails
+            document.getElementById("p1").innerHTML = "Invalid token!";
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    </script>
+  </body>
+</html>
