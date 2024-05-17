@@ -48,6 +48,8 @@ app.post('/login', (req, res) => {
 
     const messageBuffer = Buffer.from(message, 'utf8');
 
+    console.log(signedMessage.length);
+
     const isValid = nacl.sign.detached.verify(
         Uint8Array.from(messageBuffer),
         Uint8Array.from(signature),
@@ -70,12 +72,14 @@ app.post('/login', (req, res) => {
 // Endpoint for verifying the JWT token and logging in the user
 app.post('/verify', (req, res) => {
     const authHeader = req.headers.authorization;
+    console.log("authHeader: " + authHeader);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Invalid token' });
     }
 
     const token = authHeader.split(' ')[1];
+    console.log(token);
 
     try {
         // Verify the JWT token
@@ -84,9 +88,9 @@ app.post('/verify', (req, res) => {
         const currentTime = Math.floor(Date.now() / 1000);
         console.log(currentTime);
         if (decoded.exp < currentTime) {
-            res.json("tokenExpired");
+            res.status(200).json({ message: "tokenExpired" });
         } else {
-            res.json("ok");
+            res.status(200).json({ message: "ok" });
         }
 
     } catch (err) {

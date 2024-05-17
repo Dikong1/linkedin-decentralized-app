@@ -44,14 +44,14 @@
     <!-- JavaScript Code -->
     <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.10.5/dist/web3.min.js"></script>
     <script>
-      // Check if a Solana wallet extension is installed and connect to it
       async function connectToWallet() {
         if ("solana" in window) {
-          await window.solana.connect(); // opens wallet to connect to
+          await window.solana.connect();
 
           const provider = window.solana;
+          
           if (provider.isPhantom) {
-            console.log("Is Phantom installed?  ", provider.isPhantom);
+            console.log("Is Phantom installed? ", provider.isPhantom);
             return provider;
           }
         } else {
@@ -59,87 +59,77 @@
         }
       }
 
-      // Get the nonce value from the backend server
       async function getNonce() {
         const response = await fetch('/api/nonce');
-        const data = await response.json();
+        const data = await response.json(); 
         return data.nonce;
       }
 
-      // Sign the message with the nonce and send it to the backend server for verification
-      async function signMessage() {
-        try {
-          // Connect to the Solana wallet
-          const provider = await connectToWallet();
-          console.log(provider);
+      // Array conversion function
+      function convertToUint8Array(str) {
+        const arr = [];
+        for(let i = 0; i < str.length; i++) {
+          arr.push(str.charCodeAt(i));
+        }
+        return new Uint8Array(arr);
+      }
 
-          // Check if a Solana wallet extension is installed and connected
+      async function signMessage() {
+          const provider = await connectToWallet();
+
           if (!provider || !provider.isPhantom) {
-            return; // Exit if Phantom is not installed or not connected
+            return;
           }
 
-          // Get the nonce value from the backend server
           const nonce = await getNonce();
           console.log(nonce);
 
-          // Get the public key of the connected wallet
           const publicKey = provider.publicKey.toBase58();
-          // console.log("publickey: " + publicKey)
 
-          // Construct the message to be signed
           const message = `Signing this message to confirm my identity. Nonce: ${nonce}`;
 
-          // Convert the message to Uint8Array
-          const encoder = new TextEncoder('utf-8');
+          const encoder = new TextEncoder();
           const messageArray = encoder.encode(message);
 
-          // Sign the message
           const signedMessage = await provider.signMessage(messageArray);
+          console.log(signedMessage);
 
-          // Assuming that signedMessage is a Uint8Array or any array of bytes
-          let signedMessageBase64 = btoa(String.fromCharCode(...new Uint8Array(signedMessage)));
+          // assuming that signedMessage.signature is a Uint8Array
+          const signedMessageArray = signedMessage.signature;
+          console.log(signedMessageArray);
 
-          // Prepare the data to be sent to the backend server
-          const data = { signedMeassage: signedMessageBase64, message, publicKey };
-          console.log(data);
+          const data = { signedMessage: Array.from(signedMessageArray), message, publicKey };
 
-          // Send the signed message to the backend server for verification
+          console.log(JSON.stringify(data));
+
           const response = await fetch('/login', {
             method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
+            headers: { 
+              'Accept': 'application/json', 
+              'Content-Type': 'application/json' 
             },
             body: JSON.stringify(data)
           });
 
-          // Extract the token from the response
-          const token = await response.json();
+          const token = (await response.text()).trim().replace(/^"(.*)"$/, '$1');
 
-          // Store the token in local storage
           window.localStorage.setItem("token", token);
 
-          // Verify the token with the backend server
           const verifyResponse = await fetch('/verify', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
-            }
+            },
           });
 
-          // Check the verification result
           const verificationResult = await verifyResponse.json();
-          if (verificationResult === "ok") {
-            // Redirect to the success page if verification is successful
+          console.log(verifyResponse);
+          if (verificationResult.message === "ok") {
             window.location.href = '/success';
           } else {
-            // Display an error message if verification fails
             document.getElementById("p1").innerHTML = "Invalid token!";
           }
-        } catch (error) {
-          console.error(error);
-        }
       }
     </script>
   </body>
