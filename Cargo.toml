@@ -1,0 +1,10 @@
+[package]
+name = "blochain1_project_midterm_final"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+borsh = "1.5.0"
+solana-program = "1.14.11"
+solana-sdk = "1.18.14"
+solana-frozen-abi = "1.18.14"
