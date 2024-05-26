@@ -1,4 +1,8 @@
-use solana_program::borsh::{BorshDeserialize, BorshSerialize}; // Import Borsh traits directly
+use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::program_pack::IsInitialized;
+use solana_sdk::sysvar::slot_history::ProgramError;
 
 #[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
 pub struct User {
@@ -19,44 +23,85 @@ pub struct UserAccount {
     pub user: User,
 }
 
-impl Sealed for User {}
+impl User {
+    pub fn new(
+        account_address: Pubkey,
+        name: String,
+        profile_photo: String,
+        bio: String,
+        friends: Vec<Pubkey>,
+        posts: Vec<Pubkey>,
+        followers: Vec<Pubkey>,
+        followings: Vec<Pubkey>,
+        views: usize,
+    ) -> Self {
+        Self {
+            account_address,
+            name,
+            profile_photo,
+            bio,
+            friends,
+            posts,
+            followers,
+            followings,
+            views,
+        }
+    }
 
-impl Sealed for UserAccount {}
+    pub fn serialize(&self) -> Result<Vec<u8>, ProgramError> {
+        self.try_to_vec()
+            .map_err(|_| ProgramError::InvalidAccountData)
+    }
 
-impl IsInitialized for User {
-    fn is_initialized(&self) -> bool {
+    pub fn deserialize(data: &[u8]) -> Result<Self, ProgramError> {
+        Self::try_from_slice(data)
+            .map_err(|_| ProgramError::InvalidAccountData)
+    }
+
+    pub fn is_initialized(&self) -> bool {
         self.account_address != Pubkey::default()
+    }
+
+    pub fn add_following(&mut self, user_pubkey: Pubkey) {
+        self.followings.push(user_pubkey);
+    }
+
+    pub fn add_follower(&mut self, follower_pubkey: Pubkey) {
+        self.followers.push(follower_pubkey);
     }
 }
 
-impl IsInitialized for UserAccount {
-    fn is_initialized(&self) -> bool {
+impl UserAccount {
+    pub fn new(user: User) -> Self {
+        Self {
+            is_initialized: true,
+            user,
+        }
+    }
+
+    pub fn serialize(&self) -> Result<Vec<u8>, ProgramError> {
+        self.try_to_vec()
+            .map_err(|_| ProgramError::InvalidAccountData)
+    }
+
+    pub fn deserialize(data: &[u8]) -> Result<Self, ProgramError> {
+        Self::try_from_slice(data)
+            .map_err(|_| ProgramError::InvalidAccountData)
+    }
+
+    pub fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl Pack for User {
-    const LEN: usize = 224; // Adjust the length as per your fields
-    fn pack_into_slice(&self, output: &mut [u8]) {
-        let mut writer = std::io::Cursor::new(output);
-        self.serialize(&mut writer).unwrap();
-    }
+// impl IsInitialized for User {
+//     fn is_initialized(&self) -> bool {
+//         self.account_address != Pubkey::default()
+//     }
+// }
 
-    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let mut reader = std::io::Cursor::new(input);
-        Ok(Self::deserialize(&mut reader).unwrap())
-    }
-}
-
-impl Pack for UserAccount {
-    const LEN: usize = User::LEN + 1; // Add 1 for is_initialized field
-    fn pack_into_slice(&self, output: &mut [u8]) {
-        let mut writer = std::io::Cursor::new(output);
-        self.serialize(&mut writer).unwrap();
-    }
-
-    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let mut reader = std::io::Cursor::new(input);
-        Ok(Self::deserialize(&mut reader).unwrap())
-    }
-}
+// impl IsInitialized for UserAccount {
+//     fn is_initialized(&self) -> bool {
+//         self.is_initialized
+//     }
+// }

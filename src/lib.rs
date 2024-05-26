@@ -9,6 +9,17 @@ use solana_program::{
     sysvar::{rent::Rent, Sysvar},
 };
 
+pub struct Context<'a> {
+    pub program_id: &'a Pubkey,
+    pub accounts: &'a [AccountInfo<'a>],
+}
+
+impl<'a> Context<'a> {
+    pub fn new(program_id: &'a Pubkey, accounts: &'a [AccountInfo<'a>]) -> Self {
+        Self { program_id, accounts }
+    }
+}
+
 use crate::{
     instructions::{process_add_user, process_follow_user}, // Import instructions module
     state::{User, UserAccount}, // Import state module
@@ -17,49 +28,41 @@ use crate::{
 pub mod instructions;
 pub mod state;
 
-#[entrypoint]
-pub fn entry(_ctx: Context, _accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
-    msg!("Hello from Solana program");
-    Ok(())
-}
+entrypoint!(process_instruction); // Define the entrypoint function
 
-#[entrypoint]
-pub fn add_user(
-    ctx: Context<AddUser>,
-    name: String,
-    profile_photo: String,
-    bio: String,
+pub fn process_instruction<'a, 'b: 'a>(
+    program_id: &'b Pubkey, // The program's ID
+    accounts: &'a [AccountInfo<'a>], // Accounts associated with the program
+    instruction_data: &[u8], // Instruction data passed to the program
 ) -> ProgramResult {
-    process_add_user(ctx.accounts, name, profile_photo, bio)
-}
+    // Decode instruction data to determine the action
+    let instruction = match instruction_data.get(0) {
+        Some(&1) => Instruction::AddUser,
+        Some(&2) => Instruction::FollowUser,
+        _ => return Err(ProgramError::InvalidInstructionData), // Invalid instruction
+    };
 
-#[entrypoint]
-pub fn follow_user(
-    ctx: Context<FollowUser>,
-    user_to_follow_pubkey: Pubkey,
-) -> ProgramResult {
-    process_follow_user(ctx.accounts, user_to_follow_pubkey)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use solana_program::clock::Epoch;
-
-    #[test]
-    fn test_entry() {
-        let mut program_test = ProgramTest::new(
-            "my_program",
-            id!(),
-            processor!(entry),
-        );
-        let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
-
-        let mut transaction = Transaction::new_with_payer(
-            &[Instruction::new_with_bytes(id!(), &[], vec![])],
-            Some(&payer.pubkey()),
-        );
-        transaction.sign(&[&payer], recent_blockhash);
-        assert!(banks_client.process_transaction(transaction).await.is_ok());
+    // Handle the different instructions
+    match instruction {
+        Instruction::AddUser => {
+            // Extract data from accounts and perform add user logic
+            let ctx = Context::new(program_id, accounts);
+            let name = String::from_utf8(instruction_data[1..33].to_vec()).unwrap(); // Assuming name is passed as bytes
+            let profile_photo = String::from_utf8(instruction_data[33..65].to_vec()).unwrap(); // Assuming profile photo is passed as bytes
+            let bio = String::from_utf8(instruction_data[65..97].to_vec()).unwrap(); // Assuming bio is passed as bytes
+            process_add_user(ctx.accounts, name, profile_photo, bio)
+        }
+        Instruction::FollowUser => {
+            // Extract data from accounts and perform follow user logic
+            let ctx = Context::new(program_id, accounts);
+            let user_to_follow_pubkey = Pubkey::new(&instruction_data[1..33]);
+            process_follow_user(ctx.accounts, user_to_follow_pubkey)
+        }
     }
+}
+
+// Define an enum to represent different instructions
+enum Instruction {
+    AddUser,
+    FollowUser,
 }

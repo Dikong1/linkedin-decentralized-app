@@ -69,6 +69,10 @@ app.post('/login', (req, res) => {
 });
 
 
+app.post('addUser', (req, res) => {
+    
+})
+
 // Endpoint for verifying the JWT token and logging in the user
 app.post('/verify', (req, res) => {
     const authHeader = req.headers.authorization;
