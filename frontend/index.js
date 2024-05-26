@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const solanaWeb3 = require('@solana/web3.js');
 const nacl = require('tweetnacl');
 const fs = require('fs');
 var bs58 = require('bs58');
@@ -9,6 +10,10 @@ const bodyParser = require("body-parser");
 
 const app = express();
 const port = 3000;
+const connection = new solanaWeb3.Connection(
+    solanaWeb3.clusterApiUrl('devnet'),
+    'confirmed'
+);
 
 app.use(express.static(__dirname));
 app.use(express.json());
@@ -69,10 +74,6 @@ app.post('/login', (req, res) => {
 });
 
 
-app.post('addUser', (req, res) => {
-    
-})
-
 // Endpoint for verifying the JWT token and logging in the user
 app.post('/verify', (req, res) => {
     const authHeader = req.headers.authorization;
@@ -100,6 +101,43 @@ app.post('/verify', (req, res) => {
     } catch (err) {
         res.status(401).json({ error: 'Invalid token' });
     }
+});
+
+app.post('/adduser', async (req, res) => {
+    const { programId, newAccountSecretKey, name, profilePhoto, bio } = req.body;
+    const data = Buffer.from([1, ...Buffer.from(name.padEnd(32, '\0')), ...Buffer.from(profilePhoto.padEnd(32, '\0')), ...Buffer.from(bio.padEnd(32, '\0'))]);
+    const newAccountPublicKey = solanaWeb3.PublicKey.fromSecretKey(Buffer.from(newAccountSecretKey, 'hex'));
+    const program = new solanaWeb3.PublicKey(programId);
+    const instruction = new solanaWeb3.TransactionInstructicon({
+        keys: [{pubkey: newAccountPublickey, isSigner: true, isWritable: true}],
+        programld: program,
+        data: data,
+    });
+    let transaction = new solanaWeb3.Transaction().add(instruction);
+    transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+    let signingKey = solanaWeb3.Keypair.fromSecretKey(new Uint8Array(Buffer.from(newAccountSecretKey, 'hex')));
+    transaction.sign(signingKey);
+    let rawTransaction = transaction.serialize();
+    let txid = await connection.sendRawTransaction(rawTransaction);
+    res.json({txid});
+});
+
+app.post('/followUser', async (req, res) => {
+    const { programId, followeSecretKey, followedPublicKey } = req.body;
+    const data = Buffer.from([2, ...new solanaWeb3.PublicKey(followedPublicKey).toBytes()]);
+    const followerPublicKey = solanaWeb3.PublicKey.fromSecretKey(Buffer.from(followerSecretKey, 'hex'));
+    const instruction = new solanaWeb3.TransactionInstruction({
+    keys: [{pubkey: followerPublicKey, isSigner: true, isWritable: true}],
+    programId: new solanaWeb3.PublicKey(programId),
+    data: data,
+    });
+    let transaction = new solanaWeb3.Transaction().add(instruction);
+    transaction.recentBlockhash = (await connectiom.getRecentBlockhash()).blockhash;
+    let signingKey = solanaWeb3.Keypair.fromSecretKey(new Uint8Array(Buffer.from(followerSecretKey, 'hex')));
+    transaction.sign(signingKey);
+    let rawTransaction = transaction.serialize();
+    let txid = await connection.sendRawTransaction(rawTransaction);
+    res.json({txid});
 });
 
 // Serve the success page
