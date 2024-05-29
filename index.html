@@ -86,6 +86,7 @@
           console.log(nonce);
 
           const publicKey = provider.publicKey.toBase58();
+          window.localStorage.setItem("publicKey", publicKey);
 
           const message = `Signing this message to confirm my identity. Nonce: ${nonce}`;
 

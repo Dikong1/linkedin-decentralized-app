@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@solana/web3.js": "^0.30.8",
     "body-parser": "^1.20.2",
     "bs58": "^5.0.0",
     "crypto": "^1.0.1",

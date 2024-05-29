@@ -7,11 +7,14 @@ var bs58 = require('bs58');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bodyParser = require("body-parser");
+const { clusterApiUrl } = require('./cluster.js');
+
+console.log(solanaWeb3)
 
 const app = express();
 const port = 3000;
 const connection = new solanaWeb3.Connection(
-    solanaWeb3.clusterApiUrl('devnet'),
+    clusterApiUrl('devnet'),
     'confirmed'
 );
 
